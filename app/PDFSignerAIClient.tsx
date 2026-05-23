@@ -81,11 +81,13 @@ export default function PDFSignerAIClient() {
         body: JSON.stringify({ type: 'summary', text: fullText.substring(0, 10000) }),
       });
 
-      if (!response.ok) throw new Error('AI summary request failed');
       const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || response.statusText || 'AI summary request failed');
+      }
       setChatHistory([{ role: 'assistant', content: `📑 **AI Intel Ready**\n\n${data.text}` }]);
     } catch (e) {
-      setChatHistory([{ role: 'assistant', content: "Document loaded. AI ready for questions!" }]);
+      setChatHistory([{ role: 'assistant', content: `Document loaded. AI ready for questions! (${e instanceof Error ? e.message : 'Unknown error'})` }]);
     } finally {
       setIsAiTyping(false);
     }
@@ -114,11 +116,13 @@ export default function PDFSignerAIClient() {
         body: JSON.stringify({ type: 'chat', text: extractedText.substring(0, 20000), question: userInput }),
       });
 
-      if (!response.ok) throw new Error('AI chat request failed');
       const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || response.statusText || 'AI chat request failed');
+      }
       setChatHistory((prev) => [...prev, { role: 'assistant', content: data.text }]);
     } catch (e) {
-      setChatHistory((prev) => [...prev, { role: 'assistant', content: "API limit reached." }]);
+      setChatHistory((prev) => [...prev, { role: 'assistant', content: `AI error: ${e instanceof Error ? e.message : 'Unknown error'}` }]);
     } finally {
       setIsAiTyping(false);
     }

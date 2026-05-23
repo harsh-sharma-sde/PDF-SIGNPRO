@@ -14,10 +14,11 @@ export async function POST(request: Request) {
     question?: string;
   };
 
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    try {
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-  if (type === "summary") {
+      if (type === "summary") {
     if (!text) {
       return NextResponse.json({ error: "Missing text for summary." }, { status: 400 });
     }
@@ -27,24 +28,36 @@ export async function POST(request: Request) {
   }
 
   if (type === "chat") {
-    if (!text || !question) {
-      return NextResponse.json({ error: "Missing chat context or question." }, { status: 400 });
+      if (!text || !question) {
+        return NextResponse.json({ error: "Missing chat context or question." }, { status: 400 });
+      }
+      const chat = model.startChat({
+        history: [
+          {
+            role: "system",
+            parts: [
+              {
+                text: "You are a helpful legal assistant that answers contract-related questions clearly and concisely.",
+              },
+            ],
+          },
+          {
+            role: "user",
+            parts: [
+              {
+                text: `Context: ${text}`,
+              },
+            ],
+          },
+        ],
+      });
+      const result = await chat.sendMessage(question);
+      return NextResponse.json({ text: result.response.text() });
     }
-    const chat = model.startChat({
-      history: [
-        {
-          role: "user",
-          parts: [
-            {
-              text: `Context: ${text}`,
-            },
-          ],
-        },
-      ],
-    });
-    const result = await chat.sendMessage(question);
-    return NextResponse.json({ text: result.response.text() });
-  }
 
-  return NextResponse.json({ error: "Invalid request type." }, { status: 400 });
+    return NextResponse.json({ error: "Invalid request type." }, { status: 400 });
+  } catch (error) {
+    console.error("/api/ai error:", error);
+    return NextResponse.json({ error: (error as Error).message || "AI request failed." }, { status: 500 });
+  }
 }
