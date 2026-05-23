@@ -31,6 +31,7 @@ export default function PDFSignerAI() {
   const [userInput, setUserInput] = useState("");
   const [isAiTyping, setIsAiTyping] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const AI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
 
   const fonts = [
     { id: 'GreatVibes', name: 'Elegant Script', url: 'https://raw.githubusercontent.com/google/fonts/main/ofl/greatvibes/GreatVibes-Regular.ttf' },
@@ -74,7 +75,8 @@ export default function PDFSignerAI() {
         fullText += textContent.items.map((item) => item.str || "").join(" ") + " ";
       }
       setExtractedText(fullText);
-      const genAI = new GoogleGenerativeAI("AIzaSyBr5lN2CT5nxK1FNa8ImPjwQ0NJQhGfGgg");
+      if (!AI_API_KEY) throw new Error("Missing Gemini API key.");
+      const genAI = new GoogleGenerativeAI(AI_API_KEY);
       const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       const prompt = `Provide a 3-point summary of document obligations: ${fullText.substring(0, 10000)}`;
       const result = await model.generateContent(prompt);
@@ -100,15 +102,19 @@ export default function PDFSignerAI() {
     setUserInput("");
     setIsAiTyping(true);
     try {
-      const genAI = new GoogleGenerativeAI("YOUR_FREE_GEMINI_API_KEY");
+      if (!AI_API_KEY) throw new Error("Missing Gemini API key.");
+      const genAI = new GoogleGenerativeAI(AI_API_KEY);
       const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       const chat = model.startChat({
         history: [{ role: "user", parts: [{ text: `Context: ${extractedText.substring(0, 20000)}` }] }, { role: "model", parts: [{ text: "Understood." }] }],
       });
       const result = await chat.sendMessage(userInput);
       setChatHistory(prev => [...prev, { role: 'assistant', content: result.response.text() }]);
-    } catch (e) { setChatHistory(prev => [...prev, { role: 'assistant', content: "API limit reached." }]); }
-    finally { setIsAiTyping(false); }
+    } catch (e) {
+      setChatHistory(prev => [...prev, { role: 'assistant', content: "API limit reached." }]);
+    } finally {
+      setIsAiTyping(false);
+    }
   };
 
   const processSignature = async (isDownload: boolean = false) => {
